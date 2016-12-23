@@ -87,7 +87,7 @@ function _M.derive_signing_key(secret_key, credential_scope, shared_dict)
     if shared_dict ~= nil then
         local signing_key = shared_dict:get(key)
         if signing_key ~= nil then
-            return signing_key, true, nil, nil
+            return signing_key, true, false, false
         end
     end
 
@@ -96,8 +96,8 @@ function _M.derive_signing_key(secret_key, credential_scope, shared_dict)
     local kService = util.make_hmac_sha256(kRegion, scope_items[3])
     local kSigning = util.make_hmac_sha256(kService, scope_items[4])
 
-    local cache_no_memory
-    local cache_forcible
+    local cache_no_memory = false
+    local cache_forcible = false
 
     if shared_dict ~= nil then
         local _, err, forcible = shared_dict:set(key, kSigning, one_week)

@@ -14,8 +14,6 @@ local auth_header_pattern_v2 = '^(%w+)%s+(.+):(.+)$'
 local headers_not_need_to_be_signed = {
     ['x-amz-content-sha256'] = true
 }
-
-
 local parameters_to_check = {
     v4 = {
         ['X-Amz-Algorithm'] = 'algorithm',
@@ -190,7 +188,13 @@ local function parse_and_validate_auth_parameters(ctx)
     to_check = parameters_to_check[auth_type]
 
     for arg_name, var_name in pairs(to_check) do
-        local arg_value = parameters_table[arg_name]
+        local arg_value
+
+        if ctx.is_post == true then
+            arg_value = parameters_table[arg_name:lower()]
+        else
+            arg_value = parameters_table[arg_name]
+        end
 
         if arg_value == nil then
             return nil, 'AccessDenied', 'missing parameter: '..arg_name
@@ -518,18 +522,34 @@ end
 
 
 function _M.authenticate_post(self, ctx)
-    ctx = ctx or {}
+    if type(ctx) ~= 'table' then
+        return nil, 'InvalidArgument', 'the argument to authenticate_post' ..
+                ' must be a table which contains form fields'
+    end
+
+    local lower_ctx = {}
+    for k, v in pairs(ctx) do
+        local lower_k = k
+        if type(k) == 'string' then
+            lower_k = k:lower()
+        end
+
+        lower_ctx[lower_k] = v
+    end
+
+    ctx = lower_ctx
+
     ctx.is_post = true
     ctx.anonymous = false
 
-    if ctx.Policy == nil then
+    if ctx.policy == nil then
        ctx.anonymous = true
         return ctx, nil, nil
     end
 
-    if ctx['X-Amz-Signature'] ~= nil then
+    if ctx['x-amz-signature'] ~= nil then
         ctx.version = 'v4'
-    elseif ctx.Signature ~= nil then
+    elseif ctx.signature ~= nil then
         ctx.version = 'v2'
     else
         return nil, 'InvalidArgument', 'absence of signature in post field'
@@ -538,6 +558,13 @@ function _M.authenticate_post(self, ctx)
     local _, err, msg = parse_and_validate_auth_parameters(ctx)
     if err ~= nil then
         return nil, err, msg
+    end
+
+    if ctx.credential ~= nil then
+        local _, err, msg = parse_credential(ctx)
+        if err ~= nil then
+            return nil, err, msg
+        end
     end
 
     local secret_key, err, msg = self.get_secret_key(ctx.access_key)
@@ -554,14 +581,14 @@ function _M.authenticate_post(self, ctx)
                                                    self.shared_dict)
 
         sig = signature_basic.calc_signature_v4(ctx.signing_key,
-                                                ctx.Policy)
+                                                ctx.policy)
     else
         sig = signature_basic.calc_signature_v2(ctx.secret_key,
-                                                ctx.Policy)
+                                                ctx.policy)
     end
 
     if sig ~= ctx.signature then
-        local msg = string.format('Policy:%s', ctx.Policy)
+        local msg = string.format('Policy:%s', ctx.policy)
         return nil, 'SignatureDoesNotMatch', msg
     end
 
