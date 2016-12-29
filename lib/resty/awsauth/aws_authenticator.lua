@@ -1,3 +1,4 @@
+local cjson = require('cjson')
 local signature_basic = require('resty.awsauth.signature_basic')
 local util = require('resty.awsauth.util')
 
@@ -11,6 +12,18 @@ local credential_validate_time_length = 60 * 60 * 24 * 7
 local auth_header_pattern_v4 = '^(.+)%s+Credential=(.+),'..
                                '%s+SignedHeaders=(.+),%s+Signature=(%x+)$'
 local auth_header_pattern_v2 = '^(%w+)%s+(.+):(.+)$'
+local supported_operations = {
+    ['eq'] = true,
+    ['starts-with'] = true,
+    ['content-length-range'] = true,
+}
+local no_need_check_fields = {
+    ['awsaccesskeyid'] = true,
+    ['signature'] = true,
+    ['file'] = true,
+    ['policy'] = true,
+    ['x-amz-signature'] = true,
+}
 local headers_not_need_to_be_signed = {
     ['x-amz-content-sha256'] = true
 }
@@ -239,21 +252,21 @@ end
 
 
 local function get_date_info(ctx)
-    local iso_date = ctx.amz_date or ctx.headers['x-amz-date']
+    local iso_base_date = ctx.amz_date or ctx.headers['x-amz-date']
     local http_date = ctx.headers['date']
 
-    if iso_date == nil and http_date == nil then
+    if iso_base_date == nil and http_date == nil then
         return nil, 'InvalidArgument', 'missing request date'
     end
 
-    if iso_date ~= nil then
-        local ts, err, msg = util.parse_iso_base_date(iso_date)
+    if iso_base_date ~= nil then
+        local ts, err, msg = util.parse_date(iso_base_date, 'iso_base')
         if err ~= nil then
             return nil, err, msg
         end
 
         return {
-            request_date = iso_date,
+            request_date = iso_base_date,
             request_ts = ts,
         }, nil, nil
     else
@@ -311,7 +324,7 @@ end
 
 local function check_credential_date(ts_now, credential_date)
     local date_ts, err, msg =
-            util.parse_iso_base_date(credential_date .. 'T000000Z')
+            util.parse_date(credential_date .. 'T000000Z', 'iso_base')
     if err ~= nil then
         return nil, err, msg
     end
@@ -465,6 +478,30 @@ local function authenticate_v2(ctx)
 end
 
 
+local function get_bucket_from_host(host, get_bucket_from_host_function)
+    if type(host) ~= 'table' then
+        host = {host}
+    end
+
+    local bucket_in_host
+
+    for _, h in ipairs(host) do
+        if type(h) == 'string' then
+            local bucket_name, err, msg = get_bucket_from_host_function(h)
+            if err ~= nil then
+                return nil, err, msg
+            end
+            bucket_in_host = bucket_name
+        end
+        if type(bucket_in_host) == 'string' then
+            break
+        end
+    end
+
+    return bucket_in_host
+end
+
+
 function _M.authenticate(self, ctx)
     ctx = ctx or {}
     ctx.verb = ctx.verb or ngx.var.request_method
@@ -502,42 +539,181 @@ function _M.authenticate(self, ctx)
         ctx.uri = util.url_escape(util.url_unescape_plus(ctx.uri))
         return authenticate_v4(ctx)
     else
-        local host = ctx.headers.host
-        if type(host) ~= 'table' then
-            host = {host}
+        local bucket_name, err, msg =
+                get_bucket_from_host(ctx.headers.host,
+                                     self.get_bucket_from_host)
+        if err ~= nil then
+            return nil, err, msg
         end
-        for _, h in ipairs(host) do
-            local bucket_name, err, msg =self.get_bucket_from_host(h)
-            if err ~= nil then
-                return nil, err, msg
-            end
-            ctx.bucket_in_host = bucket_name
-            if type(bucket_name) == 'string' then
-                break
-            end
-        end
+        ctx.bucket_name = bucket_name
         return authenticate_v2(ctx)
     end
 end
 
 
-function _M.authenticate_post(self, ctx)
-    if type(ctx) ~= 'table' then
+local function verify_condition(condition, ctx)
+    local operation, element, expect, actual, min_size, max_size
+
+    if #condition ~= 3 then
+        operation = 'eq'
+        for k, v in pairs(condition) do
+            element = k
+            expect = v
+        end
+        if type(element) ~= 'string' or type(expect) ~= 'string' then
+            return nil, 'InvalidArgument', 'invalid simple condition'
+        end
+        element = element:lower()
+    else
+        if type(condition[1]) ~= 'string' then
+            return nil, 'InvalidArgument',
+                    'invalid condition: invalid operation identifier: ' ..
+                    tostring(condition[1])
+        end
+        operation = condition[1]:lower()
+
+        if operation == 'content-length-range' then
+            min_size = tonumber(condition[2])
+            max_size = tonumber(condition[3])
+            if type(min_size) ~= 'number' or type(max_size) ~= 'number' then
+                return nil, 'InvalidArgument', 'invalid content-length-range'
+            end
+        else
+            if type(condition[2]) ~= 'string' or
+                    string.sub(condition[2], 1, 1) ~= '$' then
+                return nil, 'InvalidArgument', string.format(
+                        'invalid condition, %s is not a string starts with $',
+                        tostring(condition[2]))
+            end
+            element = string.sub(condition[2], 2):lower()
+
+            expect = condition[3]
+            if type(expect) ~= 'string' then
+                return nil, 'InvalidArgument', string.format(
+                        'invalid condidtion, %s is not a string',
+                        tostring(expect))
+            end
+        end
+    end
+
+    if supported_operations[operation] ~= true then
+        return nil, 'InvalidArgument',
+                'invalid condition: unknown operation ' .. operation
+    end
+
+    actual = tostring(ctx[element] or '')
+
+    if operation == 'eq' then
+        if actual ~= expect then
+            return nil, 'InvalidArgument', string.format(
+                    'condition failed: ["%s", "$%s", "%s"]',
+                    operation, element, expect)
+        end
+    elseif operation == 'starts-with' then
+        if util.starts_with(actual, expect) ~= true then
+            return nil, 'InvalidArgument', string.format(
+                    'condition failed: ["%s", "$%s", "%s"]',
+                    operation, element, expect)
+        end
+    else
+        local file_size = tonumber(ctx.file_size)
+        if file_size ~= nil then
+            if file_size < min_size or file_size > max_size then
+                return nil, 'InvalidArgument', string.format(
+                        'the file size: %d is not between %d and %d',
+                        file_size, min_size, max_size)
+            end
+        end
+    end
+
+    return element, nil, nil
+end
+
+
+local function check_policy(ctx)
+    local policy_json = ngx.decode_base64(ctx.policy)
+    if policy_json == nil then
+        return nil, 'InvalidArgument',
+                'invalid policy, not a base64 encoded string: ' .. ctx.policy
+    end
+
+    local succeed, policy = pcall(cjson.decode, policy_json)
+    if succeed == false then
+        return nil, 'InvalidArgument',
+                'invalid policy, not a valid json formated string: ' ..
+                policy_json
+    end
+
+    if type(policy) ~= 'table' then
+        return nil, 'InvalidArgument',
+                'invalid policy, not a table after decode'
+    end
+
+    if type(policy.expiration) ~= 'string' then
+        return nil, 'InvalidArgument',
+                'invalid policy, missing or invalid expiration: ' ..
+                tostring(policy.expiration)
+    end
+
+    if type(policy.conditions) ~= 'table' then
+        return nil, 'InvalidArgument',
+                'invalid policy, missing or invalid conditions: ' ..
+                tostring(policy.conditions)
+    end
+
+    local expiration_ts, err, msg = util.parse_date(policy.expiration, 'iso')
+    if err ~= nil then
+        return nil, err, msg
+    end
+
+    local now_ts = ngx.time()
+
+    if now_ts > expiration_ts then
+        return nil, 'InvalidArgument', 'policy expired'
+    end
+
+    local checked_fields = {}
+
+    for _, condition in ipairs(policy.conditions) do
+        local field_name, err, msg = verify_condition(condition, ctx)
+        if err ~= nil then
+            return nil, err, msg
+        end
+
+        checked_fields[field_name] = true
+    end
+
+    for field_name, _ in pairs(ctx) do
+        if checked_fields[field_name] ~= true and
+                no_need_check_fields[field_name] ~= true and
+                util.starts_with(field_name, 'x-ignore-') ~= true then
+            return nil, 'InvalidArgument',
+                    'invalid according to policy: extra input fields:' ..
+                    field_name
+        end
+    end
+
+    return ctx, nil, nil
+end
+
+
+function _M.authenticate_post(self, post_fields)
+    if type(post_fields) ~= 'table' then
         return nil, 'InvalidArgument', 'the argument to authenticate_post' ..
                 ' must be a table which contains form fields'
     end
 
-    local lower_ctx = {}
-    for k, v in pairs(ctx) do
+    local ctx = {}
+    for k, v in pairs(post_fields) do
         local lower_k = k
         if type(k) == 'string' then
             lower_k = k:lower()
         end
 
-        lower_ctx[lower_k] = v
+        ctx[lower_k] = v
     end
 
-    ctx = lower_ctx
+    post_fields = util.dup(ctx)
 
     ctx.is_post = true
     ctx.anonymous = false
@@ -590,6 +766,23 @@ function _M.authenticate_post(self, ctx)
     if sig ~= ctx.signature then
         local msg = string.format('Policy:%s', ctx.policy)
         return nil, 'SignatureDoesNotMatch', msg
+    end
+
+    local host = ngx.req.get_headers().host
+    local bucket_name, err, msg =
+            get_bucket_from_host(host, self.get_bucket_from_host)
+    if err ~= nil then
+        return nil, err, msg
+    end
+    post_fields.bucket = bucket_name
+
+    local _, err, msg = check_policy(post_fields)
+    if err ~= nil then
+        ctx.policy_satisfied = false
+        ctx.policy_err = err
+        ctx.policy_msg = msg
+    else
+        ctx.policy_satisfied = true
     end
 
     return ctx, nil, nil

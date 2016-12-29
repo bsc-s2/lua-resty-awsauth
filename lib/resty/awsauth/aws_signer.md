@@ -12,6 +12,7 @@ Table of Contents
 * [Methods](#methods)
     * [new](#new)
     * [add_auth_v4](#add_auth_v4)
+    * [add_post_auth_v4](#add_post_auth_v4)
 * [Author](#author)
 * [Copyright and License](#copyright-and-license)
 * [See Also](#see-also)
@@ -154,7 +155,7 @@ add_auth_v4
 --------
 **syntax:** `ctx, err, msg = obj:add_auth_v4(request, opts)`
 
-calculate the signature and add it to the request, this method will modify the request you passed in.
+calculate the signature and add it to the request, this method will modify the `request` you passed in.
 
 This method accepts the following arguments:
 
@@ -176,7 +177,6 @@ This method accepts the following arguments:
  - `body` is a string contains the request body. It can be omited if you do not want to sign
      the payload or you have set the 'X-Amz-Content-SHA256' header in `headers` in `request`.
 
-
 * `opts` is a lua table contains some optional arguments, it can be omited. You can specify the following optonal arguments:
 
  - `query_auth` if set to `true`, the signature will be add to query string, otherwise the signature will
@@ -188,6 +188,8 @@ This method accepts the following arguments:
 
  - `expires` is the expire time of a presigned url in seconds, it will overwrite the value of `default_expires`.
 
+ - `request_date` is a timestamp(1483444895.718828) or an iso base format date string('20161223T120012Z') to
+     specify a custom requete date. If not specified, the current time is used.
 
 The return values depend on the following cases:
 
@@ -211,6 +213,44 @@ The return values depend on the following cases:
 
 [Back to TOC](#table-of-contents)
 
+add_post_auth_v4
+--------
+**syntax:** `ctx, err, msg = obj:add_post_auth_v4(form_fields, opts)`
+
+calculate the signature and add it to the form fields, this method will modify the `form_fields` you passed in.
+
+This method accepts the following arguments:
+
+* `form_fields` is a lua table that contains form fields, it may contain the following keys:
+
+ - `policy` is a base64 encoded json string which is used to constraint the upload request.
+     You can find details at [here](http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-HTTPPOSTConstructPolicy.html)
+
+* `opts` is a lua table contains some optional arguments, it can be omited. You can specify the following optonal arguments:
+
+ - `request_date` is a timestamp(1483444895.718828) or an iso base format date string('20161223T120012Z') to
+     specify a custom requete date. If not specified, the current time is used.
+
+
+The return values depend on the following cases:
+
+* if succeed, the method will return a lua table which contains some intermidiate values used in the
+    signing process, it is usefull for debuging. It may contain the following keys:
+
+ - `signing_key` is the key used to calculate the signatrue, which is derived from secret key.
+
+ - `cache_hit` is boolean value to indicate whether the `signing_key` is get from the cache. If you did not
+    specified a shared dict, it will always be `false`.
+
+ - `no_memory` is boolean value to indicate whether the cache is lack of memory. If you did not
+    specified a shared dict, it will always be `false`.
+
+ - `forcible` is boolean value to indicate whether other valid items have been removed forcibly when out
+    of storage in the shared memory zone. If you did not specified a shared dict, it will always be `false`.
+
+* If something go wrong, this method will return a nil and an error code and an error message.
+
+[Back to TOC](#table-of-contents)
 Author
 ======
 
@@ -221,18 +261,8 @@ Renzhi (任稚) <zhi.ren@baishancloud.com>.
 Copyright and License
 =====================
 
-This module is licensed under the BSD license.
+The MIT License (MIT)
 
-Copyright (C) 2015-2016, by Yichun "agentzh" Zhang, CloudFlare Inc.
-
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+Copyright (c) 2016 Renzhi (任稚) <zhi.ren@baishancloud.com>
 
 [Back to TOC](#table-of-contents)

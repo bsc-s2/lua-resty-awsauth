@@ -287,7 +287,19 @@ authenticate the signature in the request, if the request is browser-based uploa
 This method takes the following arguments:
 
 * `form_fields` is a lua table which contains the form fields in the POST request, if do not need to
-    contain the 'file' fields.
+    contain the 'file' fields. If may contains the following keys:
+
+ - `policy` is the policy field in the request.
+
+ - `acl` is the acl field in the request.
+
+ - `key` is the key field in the request.
+
+ - `file_size` is NOT a field in the requst, you need to add this key if you specified `content-length-range`
+     condition in the `policy`. You can simply set it with value of `Content-Length` header, even thought
+     it is not precise, as you can not get the precise file size before read all the body. If the file in
+     the upload request is very large, you may want to do the authentication before read the file data.
+     If you do not specify this key, the `content-length-range` condition will not be checked.
 
 The return values depend on the following cases:
 
@@ -313,6 +325,15 @@ The return values depend on the following cases:
  - `forcible` is boolean value to indicate whether other valid items have been removed forcibly when out
     of storage in the shared memory zone. If you did not specified a shared dict, it will always be `false`.
 
+ - `policy_satisfied` is boolean value to indicate whether the request satisfied the policy.
+     You must check this value, even though the authentication is succeed. If this value is
+     `false`, you need to reject the request, because it did not satisfied the constraints
+     you specified in the `policy`.
+
+ - `policy_err` is a string represent the error code when the `policy_satisfied` is `false`.
+
+ - `policy_msg` is a string represent the error message when the `policy_satisfied` is `false`.
+
 * If something go wrong, this method will return a nil and an error code and an error message.
 
 
@@ -326,18 +347,8 @@ Renzhi (任稚) <zhi.ren@baishancloud.com>.
 Copyright and License
 =====================
 
-This module is licensed under the BSD license.
+The MIT License (MIT)
 
-Copyright (C) 2015-2016, by Yichun "agentzh" Zhang, CloudFlare Inc.
-
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+Copyright (c) 2016 Renzhi (任稚) <zhi.ren@baishancloud.com>
 
 [Back to TOC](#table-of-contents)

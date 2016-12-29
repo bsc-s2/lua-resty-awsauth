@@ -350,6 +350,26 @@ local function modify_request_headers(request, query_auth, request_date, service
 end
 
 
+local function get_request_date(custom_request_date)
+    local crd = custom_request_date
+    local request_date
+
+    if type(crd) == 'number' then
+        request_date = util.get_iso_base_from_ts(crd)
+    elseif type(crd) == 'string' then
+        request_date = crd
+        local _, err, msg = util.parse_date(crd, 'iso_base')
+        if err ~= nil then
+            return nil, err, msg
+        end
+    else
+        request_date = util.get_iso_base_now()
+    end
+
+    return request_date, nil, nil
+end
+
+
 function _M.add_auth_v4(self, request, opts)
     if opts ~= nil and type(opts) ~= 'table' then
         return nil, 'InvalidArgument', string.format(
@@ -375,7 +395,11 @@ function _M.add_auth_v4(self, request, opts)
         return nil, err, msg
     end
 
-    local request_date = util.get_iso_base_now()
+    local request_date, err, msg = get_request_date(opts.request_date)
+    if err ~= nil then
+        return nil, err, msg
+    end
+
     local credential_date = string.sub(request_date, 1, 8)
     local credential_scope = table.concat({
                                           credential_date,
@@ -482,6 +506,70 @@ function _M.add_auth_v4(self, request, opts)
         request.headers['Authorization'] = string.format(auth_formt_v4,
                 ctx.algorithm, credential, ctx.signed_headers, ctx.signature)
     end
+
+    return ctx, nil, nil
+end
+
+
+function _M.add_post_auth_v4(self, form_fields, opts)
+    if type(form_fields) ~= 'table' then
+        return nil, 'InvalidArgument', 'form_fields is not a table'
+    end
+
+    if opts ~= nil and type(opts) ~= 'table' then
+        return nil, 'InvalidArgument', string.format(
+                'opts: %s, is not a table', tostring(opts))
+    end
+    opts = opts or {}
+
+    local policy
+    for k, v in pairs(form_fields) do
+        local lower_k = tostring(k):lower()
+        if valid_auth_args[lower_k] == true then
+            form_fields[k] = nil
+        end
+
+        if lower_k == 'policy' then
+            policy = v
+        end
+    end
+
+    if type(policy) ~= 'string' then
+        return nil, 'InvalidArgument',
+                'missing or invalid policy in form_fields'
+    end
+
+    local request_date, err, msg = get_request_date(opts.request_date)
+    if err ~= nil then
+        return nil, err, msg
+    end
+
+    local credential_date = string.sub(request_date, 1, 8)
+    local credential_scope = table.concat({
+                                          credential_date,
+                                          self.region,
+                                          self.service,
+                                          credential_suffix
+                                      }, '/')
+    local credential = self.access_key .. '/' .. credential_scope
+
+    local ctx = {
+        algorithm = algorithm,
+        request_date = request_date,
+        credential_scope = credential_scope,
+    }
+    ctx.signing_key, ctx.cache_hit, ctx.no_memory, ctx.forcible =
+            signature_basic.derive_signing_key(self.secret_key,
+                                               credential_scope,
+                                               self.shared_dict)
+
+    ctx.signature = signature_basic.calc_signature_v4(ctx.signing_key,
+                                                      policy)
+
+    form_fields['X-Amz-Algorithm'] = algorithm
+    form_fields['X-Amz-Credential'] = credential
+    form_fields['X-Amz-Date'] = request_date
+    form_fields['X-Amz-Signature'] = ctx.signature
 
     return ctx, nil, nil
 end

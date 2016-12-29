@@ -6,7 +6,10 @@ local resty_string = require('resty.string')
 local _M = { _VERSION = '0.0.1' }
 
 
-local iso_basic_pattern = '(%d%d%d%d)(%d%d)(%d%d)T(%d%d)(%d%d)(%d%d)Z'
+local date_patterns = {
+    iso_base = '(%d%d%d%d)(%d%d)(%d%d)T(%d%d)(%d%d)(%d%d)Z',
+    iso = '(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)%.000Z',
+}
 local iso_basic_format = '%04d%02d%02dT%02d%02d%02dZ'
 
 local function get_timezone()
@@ -160,15 +163,20 @@ function _M.dup(tbl, deep, ref_table)
 end
 
 
-function _M.parse_iso_base_date(date_str)
+function _M.parse_date(date_str, format)
     if type(date_str) ~= 'string' then
         return nil, 'InvalidArgument', 'invalid time: '..tostring(date_str)
     end
 
-    local yy, mm, dd, h, m, s = string.match(date_str, iso_basic_pattern)
+    local pattern = date_patterns[format]
+    if pattern == nil then
+        return nil, 'InvalidArgument', 'not supported date format: ' .. format
+    end
+
+    local yy, mm, dd, h, m, s = string.match(date_str, pattern)
     if yy == nil then
         return nil, 'InvalidArgument',
-                'invalid iso 8601 base date format: '..date_str
+                string.format('invalid %s date  format: %s', format, date_str)
     end
 
     local ts = os.time({ year=yy, month=mm, day=dd, hour=h, min=m, sec=s })
@@ -195,6 +203,13 @@ end
 
 function _M.get_iso_base_now()
     local d = os.date('!*t')
+    return string.format(iso_basic_format, d.year, d.month, d.day,
+                         d.hour, d.min, d.sec)
+end
+
+
+function _M.get_iso_base_from_ts(timestamp)
+    local d = os.date('!*t', timestamp)
     return string.format(iso_basic_format, d.year, d.month, d.day,
                          d.hour, d.min, d.sec)
 end
