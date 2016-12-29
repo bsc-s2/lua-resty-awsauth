@@ -6,10 +6,15 @@ local resty_string = require('resty.string')
 local _M = { _VERSION = '0.0.1' }
 
 
-local time_zone = -60 * 60 * 8
 local iso_basic_pattern = '(%d%d%d%d)(%d%d)(%d%d)T(%d%d)(%d%d)(%d%d)Z'
 local iso_basic_format = '%04d%02d%02dT%02d%02d%02dZ'
 
+local function get_timezone()
+    local now = os.time()
+    return os.difftime(now, os.time(os.date("!*t", now)))
+end
+
+local timezone = get_timezone()
 
 ffi.cdef[[
 typedef struct env_md_st EVP_MD;
@@ -168,7 +173,7 @@ function _M.parse_iso_base_date(date_str)
 
     local ts = os.time({ year=yy, month=mm, day=dd, hour=h, min=m, sec=s })
 
-    return ts - time_zone, nil, nil
+    return ts + timezone, nil, nil
 end
 
 
@@ -189,7 +194,7 @@ end
 
 
 function _M.get_iso_base_now()
-    local d = os.date('*t', os.time() + time_zone)
+    local d = os.date('!*t')
     return string.format(iso_basic_format, d.year, d.month, d.day,
                          d.hour, d.min, d.sec)
 end
