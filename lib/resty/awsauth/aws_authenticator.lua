@@ -499,7 +499,7 @@ function _M.authenticate(self, ctx)
     ctx.secret_key = secret_key
 
     if ctx.version == 'v4' then
-        ctx.uri = util.url_escape(util.url_unescape_plus(ctx.uri))
+        ctx.uri = util.url_escape(util.url_unescape_plus(ctx.uri), '/~')
         return authenticate_v4(ctx)
     else
         local host = ctx.headers.host
