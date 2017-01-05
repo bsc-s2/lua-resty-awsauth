@@ -188,6 +188,8 @@ This method accepts the following arguments:
 
  - `expires` is the expire time of a presigned url in seconds, it will overwrite the value of `default_expires`.
 
+ - `signing_date` is a 8 digital date string like '20170131' used to specify a custom siging date.
+
 
 The return values depend on the following cases:
 

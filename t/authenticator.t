@@ -406,3 +406,56 @@ AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_requ
 ziw5dp1alvty9n47qksu
 --- no_error_log
 [error]
+
+
+=== TEST 7: test signing key expired
+--- http_config eval: $::HttpConfig
+--- config
+    location /t {
+        rewrite_by_lua '
+            local aws_signer = require("resty.awsauth.aws_signer")
+            local aws_authenticator = require("resty.awsauth.aws_authenticator")
+
+            local access_key = "ziw5dp1alvty9n47qksu"
+            local secret_key = "V+ZTZ5u5wNvXb+KP5g0dMNzhMeWe372/yRKx4hZV"
+            local signer, err, msg = aws_signer.new(access_key, secret_key)
+            if err ~= nil then
+                ngx.log(ngx.ERR, "failed to new a aws_signer" .. err .. " " .. msg)
+            end
+
+            local request = {
+                verb = "GET",
+                uri = "/",
+                headers = {
+                    Host = "127.0.0.1",
+                },
+            }
+
+            local ctx, err, msg = signer:add_auth_v4(request, {signing_date = "20150102"})
+            if err ~= nil then
+                ngx.log(ngx.ERR, "failed to add auth: " .. err .. " " .. msg)
+            end
+
+            local function get_secret_key(secret_key_in_request)
+                return secret_key
+            end
+            local function get_bucket_from_host(host)
+                return nil
+            end
+            local authenticator = aws_authenticator.new(get_secret_key, get_bucket_from_host)
+
+            local low_headers = {}
+            for k, v in pairs(request.headers) do
+                low_headers[k:lower()] = v
+            end
+            request.headers = low_headers
+            local ctx, err, msg = authenticator:authenticate(request)
+            ngx.say(msg)
+        ';
+    }
+--- request
+GET /t
+--- response_body
+the credential has expired
+--- no_error_log
+[error]

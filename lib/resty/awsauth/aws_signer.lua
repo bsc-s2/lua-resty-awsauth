@@ -376,7 +376,12 @@ function _M.add_auth_v4(self, request, opts)
     end
 
     local request_date = util.get_iso_base_now()
-    local credential_date = string.sub(request_date, 1, 8)
+    local credential_date = opts.signing_date or string.sub(request_date, 1, 8)
+    if type(credential_date) ~= 'string' then
+        return nil, 'InvalidArgument', 'invalid signing date: ' ..
+                tostring(opts.signing_date)
+    end
+
     local credential_scope = table.concat({
                                           credential_date,
                                           self.region,
