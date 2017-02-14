@@ -9,7 +9,7 @@ local mt = { __index = _M }
 local date_difference_tolerance = 60 * 15
 local credential_validate_time_length = 60 * 60 * 24 * 7
 local auth_header_pattern_v4 = '^(.+)%s+Credential=(.+),'..
-                               '%s+SignedHeaders=(.+),%s+Signature=(%x+)$'
+                               '%s*SignedHeaders=(.+),%s*Signature=(%x+)$'
 local auth_header_pattern_v2 = '^(%w+)%s+(.+):(.+)$'
 local headers_not_need_to_be_signed = {
     ['x-amz-content-sha256'] = true
