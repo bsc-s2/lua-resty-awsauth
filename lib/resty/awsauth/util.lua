@@ -9,6 +9,11 @@ local _M = { _VERSION = '0.0.1' }
 local iso_basic_pattern = '(%d%d%d%d)(%d%d)(%d%d)T(%d%d)(%d%d)(%d%d)Z'
 local iso_basic_format = '%04d%02d%02dT%02d%02d%02dZ'
 
+-- Daylight Saving Time(DST)
+--
+-- "!*t" convert time stamp to UTS time string.
+-- os.date() returns a time table with field isdst = false
+-- Thus this function returns the offset to timezone 0 without DST info
 local function get_timezone()
     local now = os.time()
     return os.difftime(now, os.time(os.date("!*t", now)))
@@ -171,7 +176,10 @@ function _M.parse_iso_base_date(date_str)
                 'invalid iso 8601 base date format: '..date_str
     end
 
-    local ts = os.time({ year=yy, month=mm, day=dd, hour=h, min=m, sec=s })
+    -- timezone does not include DST info, thus we must not convert it as a
+    -- DST time.
+    local ts = os.time({ year=yy, month=mm, day=dd, hour=h, min=m, sec=s,
+                         isdst=false })
 
     return ts + timezone, nil, nil
 end
