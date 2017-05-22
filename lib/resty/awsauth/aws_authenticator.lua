@@ -317,7 +317,10 @@ local function check_credential_date(ts_now, credential_date)
     end
 
     if ts_now > date_ts + credential_validate_time_length then
-        return nil, 'InvalidArgument', 'the credential has expired'
+        return nil, 'InvalidArgument', string.format(
+                'the credential has expired, credential_date: %s, ' ..
+                'credential_date_ts: %f, ts_now: %f',
+                credential_date, date_ts, ts_now)
     end
 
     return nil, nil, nil
@@ -344,8 +347,11 @@ local function authenticate_v4(ctx)
     if ctx.query_auth == false then
         if request_ts < ts_now - date_difference_tolerance or
                request_ts > ts_now + date_difference_tolerance then
-            return nil, 'RequestTimeTooSkewed', 'the difference between the '..
-                    'request time and the server time is to large'
+            return nil, 'RequestTimeTooSkewed', string.format(
+                    'the difference between the request time and the '..
+                    'server time is to large, request_date: %s, '..
+                    'request_date_ts: %f, ts_now: %f',
+                    date_info.request_date, date_info.request_ts, ts_now)
         end
     else
         local expires_ts = tonumber(ctx.expires)
@@ -354,7 +360,11 @@ local function authenticate_v4(ctx)
                     tostring(ctx.expires)
         end
         if ts_now > request_ts + expires_ts then
-            return nil, 'ExpiredToken', 'the token has expired'
+            return nil, 'ExpiredToken', string.format(
+                    'the token has expired, request_date: %s, '..
+                    'request_date_ts: %f, expires_ts: %f, ts_now: %f',
+                    date_info.request_date, date_info.request_ts,
+                    expires_ts, ts_now)
         end
     end
 
@@ -414,7 +424,9 @@ local function authenticate_v2(ctx)
                     .. tostring(ctx.expires)
         end
         if ts < ts_now then
-            return nil, 'ExpiredToken', 'the token has expired'
+            return nil, 'ExpiredToken', string.format(
+                    'the token has expired, expires: %f, ts_now: %f',
+                    ts, ts_now)
         end
         ctx.date = ctx.expires
     else
@@ -430,8 +442,11 @@ local function authenticate_v2(ctx)
 
         if ts < ts_now - date_difference_tolerance or
                   ts > ts_now + date_difference_tolerance then
-            return nil, 'RequestTimeTooSkewed', 'the difference between '..
-                    'the request time and the server time is too large'
+            return nil, 'RequestTimeTooSkewed', string.format(
+                    'the difference between the request time and the '..
+                    'server time is to large, request_date: %s, '..
+                    'request_date_ts: %f, ts_now: %f',
+                    date, ts, ts_now)
         end
 
         if ctx.headers['x-amz-date'] ~= nil then
