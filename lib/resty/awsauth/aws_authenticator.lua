@@ -328,12 +328,8 @@ end
 
 
 local function authenticate_v4(ctx)
-    if ctx.service == 's3' and ctx.query_auth == true then
-        ctx.hashed_payload = signature_basic.unsigned_payload
-    else
-        ctx.hashed_payload = ctx.headers['x-amz-content-sha256'] or
-                signature_basic.empty_payload_hash
-    end
+    ctx.hashed_payload = ctx.headers['x-amz-content-sha256'] or
+            signature_basic.unsigned_payload
 
     local date_info,  err, msg = get_date_info(ctx)
     if err ~= nil then

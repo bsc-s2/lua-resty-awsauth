@@ -182,7 +182,8 @@ This method accepts the following arguments:
  - `query_auth` if set to `true`, the signature will be add to query string, otherwise the signature will
     be contained in 'Authorization' header.
 
- - `sign_payload` if set to `true`, the 'X-Amz-Content-SHA256' header will be add to the signing process.
+ - `sign_payload` if set to `true`, the SHA256 of the body will be calculated if header 'X-Amz-Content-SHA256'
+    is not specifed in `headers`.
 
  - `headers_not_to_sign` is a list of header names indicate which headers are not need to be signed.
 

@@ -53,8 +53,8 @@ __DATA__
 GET /t
 --- response_body_like
 /
-AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-date, Signature=[0-9a-f]{64}
-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=[0-9a-f]{64}
+UNSIGNED-PAYLOAD
 [0-9]{8}T[0-9]{6}Z
 --- no_error_log
 [error]
@@ -139,7 +139,7 @@ nil
 GET /t
 --- response_body_like
 /aaa/bbb\?foo=bar
-AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-date, Signature=[0-9a-f]{64}
+AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=[0-9a-f]{64}
 --- no_error_log
 [error]
 
@@ -184,7 +184,7 @@ AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_requ
 GET /t
 --- response_body_like
 /\?foo3&foo1=bar1&foo2=bar2
-AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-date, Signature=[0-9a-f]{64}
+AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=[0-9a-f]{64}
 --- no_error_log
 [error]
 
@@ -226,8 +226,8 @@ AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_requ
 GET /t
 --- response_body_like
 /
-AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-date, Signature=[0-9a-f]{64}
-fdcf4254fc02e5e41e545599f0be4f9f65e8be431ebc1fd301a96ea88dd0d5d6
+AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=[0-9a-f]{64}
+UNSIGNED-PAYLOAD
 --- no_error_log
 [error]
 

@@ -304,7 +304,8 @@ local function validate_request(request)
 end
 
 
-local function modify_request_headers(request, query_auth, request_date, service_name)
+local function modify_request_headers(request, query_auth,
+                                      sign_payload, request_date)
     local has_amz_date
     local hashed_payload
 
@@ -320,9 +321,7 @@ local function modify_request_headers(request, query_auth, request_date, service
 
         elseif low_name == 'x-amz-content-sha256' then
             hashed_payload = v
-            if service_name == 's3' and query_auth ~= true then
-                request.headers[k] = nil
-            end
+            request.headers[k] = nil
         end
     end
 
@@ -330,22 +329,28 @@ local function modify_request_headers(request, query_auth, request_date, service
         request.headers['X-Amz-Date'] = request_date
     end
 
-    if hashed_payload == nil then
-        if type(request.body) == 'string' and #request.body > 0 then
-            hashed_payload = util.make_sha256(request.body, true)
-        else
-            hashed_payload = signature_basic.empty_payload_hash
-        end
+    if hashed_payload ~= nil then
+        request.headers['X-Amz-Content-SHA256'] = hashed_payload
+        return hashed_payload
     end
 
-    if service_name == 's3' then
-        if query_auth ~= true then
-            request.headers['X-Amz-Content-SHA256'] = hashed_payload
-        else
-            hashed_payload = signature_basic.unsigned_payload
-        end
+    if query_auth == true then
+        return signature_basic.unsigned_payload
     end
 
+    if sign_payload ~= true then
+        request.headers['X-Amz-Content-SHA256'] =
+                signature_basic.unsigned_payload
+        return signature_basic.unsigned_payload
+    end
+
+    if type(request.body) == 'string' and #request.body > 0 then
+        hashed_payload = util.make_sha256(request.body, true)
+    else
+        hashed_payload = signature_basic.empty_payload_hash
+    end
+
+    request.headers['X-Amz-Content-SHA256'] = hashed_payload
     return hashed_payload
 end
 
@@ -364,10 +369,6 @@ function _M.add_auth_v4(self, request, opts)
         return nil, 'InvalidArgument', string.format(
                 'headers_not_to_sign: %s, is not a table',
                 tostring(opts.headers_not_to_sign))
-    end
-
-    if opts.sign_payload ~= true then
-        table.insert(opts.headers_not_to_sign, 'x-amz-content-sha256')
     end
 
     local _, err, msg = validate_request(request)
@@ -391,7 +392,7 @@ function _M.add_auth_v4(self, request, opts)
     local credential = self.access_key .. '/' .. credential_scope
 
     local hashed_payload = modify_request_headers(request, opts.query_auth,
-                                                  request_date, self.service)
+                                                  opts.sign_payload, request_date)
     local signed_headers, stand_headers =
             standardize_headers(request.headers, opts.headers_not_to_sign)
 
