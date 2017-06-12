@@ -208,7 +208,7 @@ ziw5dp1alvty9n47qksu
 --- request
 GET /t
 --- response_body_like
-/\?foo3&foo1=bar1&foo2=bar2
+/\?foo1=bar1&foo2=bar2&foo3
 AWS4-HMAC-SHA256 Credential=ziw5dp1alvty9n47qksu/[0-9]{8}/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=[0-9a-f]{64}
 ziw5dp1alvty9n47qksu
 --- no_error_log
