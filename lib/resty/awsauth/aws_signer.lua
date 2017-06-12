@@ -115,6 +115,8 @@ local function args_to_query_string(args)
         end
     end
 
+    table.sort(qs)
+
     return table.concat(qs, '&')
 end
 
