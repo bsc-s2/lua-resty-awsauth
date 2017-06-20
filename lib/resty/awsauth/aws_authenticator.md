@@ -13,6 +13,8 @@ Table of Contents
     * [new](#new)
     * [authenticate](#authenticate)
     * [authenticate_post](#authenticate_post)
+    * [init_seed_signature](#init_seed_signature)
+    * [check_chunk_signature](#check_chunk_signature)
 * [Author](#author)
 * [Copyright and License](#copyright-and-license)
 * [See Also](#see-also)
@@ -315,6 +317,33 @@ The return values depend on the following cases:
 
 * If something go wrong, this method will return a nil and an error code and an error message.
 
+init_seed_signature
+--------
+**syntax:** `ctx, err, msg = obj:init_seed_signature(ctx)`
+
+[Back to TOC](#table-of-contents)
+
+calculate the seed signature of a chunked upload request, the argument `ctx`
+is the same as argument of `authenticate`
+
+The return values is the same as the return of `authenticate`.
+
+check_chunk_signature
+--------
+**syntax:** `ctx, err, msg = obj:check_chunk_signature(ctx, chunk_data_sha256, chunk_signature)`
+
+[Back to TOC](#table-of-contents)
+
+This method takes the following arguments:
+
+* `ctx` is the ctx returned by `init_seed_signature`.
+
+* `chunk_data_sha256` is the sha256 of data of the chunk about to check.
+
+* `chunk_signature` is the signature in the chunk about to check.
+
+if the `chunk_signature` does not match the signature calculated by server,
+nil and error code and error message will be returned
 
 Author
 ======

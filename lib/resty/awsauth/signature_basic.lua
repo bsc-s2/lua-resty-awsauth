@@ -188,6 +188,19 @@ function _M.build_string_to_sign_v4(ctx)
 end
 
 
+function _M.build_chunk_string_to_sign_v4(ctx)
+    local string_to_sign = {
+        'AWS4-HMAC-SHA256-PAYLOAD',
+        ctx.request_date,
+        ctx.credential_scope,
+        ctx.previous_signature,
+        _M.empty_payload_hash,
+        ctx.chunk_data_sha256,
+    }
+    return table.concat(string_to_sign, '\n')
+end
+
+
 function _M.build_canonical_headers_v2(headers)
     local amz_header_names = {}
 

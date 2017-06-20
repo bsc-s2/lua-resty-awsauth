@@ -607,6 +607,50 @@ function _M.authenticate_post(self, ctx)
 end
 
 
+function _M.init_seed_signature(self, ctx)
+    local ctx, err, msg = self:authenticate(ctx)
+    if err ~= nil then
+        return nil, err, msg
+    end
+
+    if ctx.anonymous == true then
+        return nil, 'InvalidRequest',
+                'anonymous user is not allowed to use chunked upload'
+    end
+
+    if ctx.version ~= 'v4' or ctx.query_auth ~= false then
+        return nil, 'InvalidRequest',
+                'chunked upload must use signature version 4 '..
+                'with an Authorization header'
+    end
+
+    ctx.previous_signature = ctx.signature
+    return ctx, nil, nil
+end
+
+
+function _M.check_chunk_signature(self, ctx, chunk_data_sha256,
+                                  chunk_signature)
+    ctx.chunk_data_sha256 = chunk_data_sha256
+    ctx.chunk_string_to_sign =
+            signature_basic.build_chunk_string_to_sign_v4(ctx)
+
+    local chunk_sig = signature_basic.calc_signature_v4(
+            ctx.signing_key, ctx.chunk_string_to_sign)
+
+    if chunk_sig ~= chunk_signature then
+        local msg = string.format('chunk string to sign:%s, hex:%s',
+                                  ctx.chunk_string_to_sign,
+                                  util.to_hex(ctx.chunk_string_to_sign))
+        return nil, 'SignatureDoesNotMatch', msg
+    end
+
+    ctx.previous_signature = chunk_signature
+
+    return ctx, nil, nil
+end
+
+
 function _M.new(get_secret_key, get_bucket_from_host, shared_dict)
     return setmetatable({
         get_secret_key = get_secret_key,
@@ -614,5 +658,6 @@ function _M.new(get_secret_key, get_bucket_from_host, shared_dict)
         shared_dict = shared_dict,
     }, mt)
 end
+
 
 return _M

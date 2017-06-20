@@ -208,4 +208,9 @@ function _M.get_iso_base_now()
 end
 
 
+function _M.to_hex(str)
+    return resty_string.to_hex(str)
+end
+
+
 return _M
