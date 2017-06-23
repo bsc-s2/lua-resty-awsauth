@@ -24,30 +24,30 @@ function _M.new(access_key, secret_key, opts)
 
     if type(access_key) ~= 'string' then
         return nil, 'InvalidArgument', string.format(
-                'access_key: %s, in not a string', tostring(access_key))
+                'access_key: %s, is not a string', tostring(access_key))
     end
 
     if type(secret_key) ~= 'string' then
         return nil, 'InvalidArgument', string.format(
-                'secret_key: %s, in not a string', tostring(secret_key))
+                'secret_key: %s, is not a string', tostring(secret_key))
     end
 
     local region = opts.region or 'us-east-1'
     if type(region) ~= 'string' then
         return nil, 'InvalidArgument', string.format(
-                'region: %s, in not a string', tostring(region))
+                'region: %s, is not a string', tostring(region))
     end
 
     local service = opts.service or 's3'
     if type(service) ~= 'string' then
         return nil, 'InvalidArgument', string.format(
-                'service: %s, in not a string', tostring(service))
+                'service: %s, is not a string', tostring(service))
     end
 
     local default_expires = opts.default_expires or 60
     if default_expires ~= nil and type(default_expires) ~= 'number' then
         return nil, 'InvalidArgument', string.format(
-                'default_expires: %s, in not a number',
+                'default_expires: %s, is not a number',
                 tostring(default_expires))
     end
 
