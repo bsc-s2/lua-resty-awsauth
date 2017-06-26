@@ -10,20 +10,22 @@ local _M = {
 
 
 local one_week = 60 * 60 * 24 * 7
+
+-- true means that this arg can have value, false means can not
 local valid_subresources = {
-    ['accelerate'] = true,
-    ['acl'] = true,
-    ['cors'] = true,
+    ['accelerate'] = false,
+    ['acl'] = false,
+    ['cors'] = false,
     ['defaultObjectAcl'] = true,
     ['delete'] = true,
-    ['lifecycle'] = true,
+    ['lifecycle'] = false,
     ['location'] = true,
-    ['logging'] = true,
+    ['logging'] = false,
     ['notification'] = true,
     ['partNumber'] = true,
-    ['policy'] = true,
-    ['replication'] = true,
-    ['requestPayment'] = true,
+    ['policy'] = false,
+    ['replication'] = false,
+    ['requestPayment'] = false,
     ['response-cache-control'] = true,
     ['response-content-disposition'] = true,
     ['response-content-encoding'] = true,
@@ -32,17 +34,17 @@ local valid_subresources = {
     ['response-expires'] = true,
     ['restore'] = true,
     ['storageClass'] = true,
-    ['tagging'] = true,
-    ['torrent'] = true,
+    ['tagging'] = false,
+    ['torrent'] = false,
     ['uploadId'] = true,
-    ['uploads'] = true,
+    ['uploads'] = false,
     ['versionId'] = true,
     ['versioning'] = true,
     ['versions'] = true,
     ['website'] = true,
-    ['copy'] = true,
-    ['relax'] = true,
-    ['meta'] = true,
+    ['copy'] = false,
+    ['relax'] = false,
+    ['meta'] = false,
 }
 
 
@@ -239,7 +241,7 @@ function _M.build_canonical_resource(ctx)
         local v = ctx.args[name]
         if type(v) == 'table' then
             return nil, 'InvalidArgument', 'duplicated arg: '..name
-        elseif v == true then
+        elseif v == true or valid_subresources[name] == false then
             table.insert(arg_values, name)
         else
             table.insert(arg_values, name .. '=' .. v)
