@@ -401,8 +401,12 @@ local function authenticate_v4(ctx)
                                                   ctx.string_to_sign)
 
     if sig ~= ctx.signature then
-        local msg = string.format('string to sign:%s\ncanonical_request:%s',
-                              ctx.string_to_sign, ctx.canonical_request)
+        local msg = string.format('string to sign:%s, hex:%s\n'..
+                                  'canonical_request:%s, hex:%s',
+                                  ctx.string_to_sign,
+                                  util.to_hex(ctx.string_to_sign),
+                                  ctx.canonical_request,
+                                  util.to_hex(ctx.canonical_request))
         return nil, 'SignatureDoesNotMatch', msg
     end
 
@@ -468,7 +472,9 @@ local function authenticate_v2(ctx)
                                                   ctx.string_to_sign)
 
     if sig ~= ctx.signature then
-        local msg = string.format('string_to_sign:%s', ctx.string_to_sign)
+        local msg = string.format('string_to_sign:%s, hex:%s',
+                                  ctx.string_to_sign,
+                                  util.to_hex(ctx.string_to_sign))
         return nil, 'SignatureDoesNotMatch', msg
     end
 
@@ -599,7 +605,9 @@ function _M.authenticate_post(self, ctx)
     end
 
     if sig ~= ctx.signature then
-        local msg = string.format('Policy:%s', ctx.policy)
+        local msg = string.format('Policy:%s, hex:%s',
+                                  ctx.policy,
+                                  util.to_hex(ctx.policy))
         return nil, 'SignatureDoesNotMatch', msg
     end
 
