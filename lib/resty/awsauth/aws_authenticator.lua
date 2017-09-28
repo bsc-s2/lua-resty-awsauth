@@ -504,7 +504,7 @@ function _M.authenticate(self, ctx)
         return nil, err, msg
     end
 
-    local secret_key, err, msg = self.get_secret_key(ctx.access_key)
+    local secret_key, err, msg = self.get_secret_key(ctx)
     if err ~= nil then
         return nil, err, msg
     end
@@ -584,7 +584,7 @@ function _M.authenticate_post(self, ctx)
         end
     end
 
-    local secret_key, err, msg = self.get_secret_key(ctx.access_key)
+    local secret_key, err, msg = self.get_secret_key(ctx)
     if err ~= nil then
         return nil, err, msg
     end
