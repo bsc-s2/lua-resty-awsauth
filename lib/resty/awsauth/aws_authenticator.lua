@@ -327,9 +327,28 @@ local function check_credential_date(ts_now, credential_date)
 end
 
 
-local function authenticate_v4(ctx)
-    ctx.hashed_payload = ctx.headers['x-amz-content-sha256'] or
-            signature_basic.unsigned_payload
+local function get_body_content_sha256()
+    ngx.req.read_body()
+    local body_data = ngx.req.get_body_data() or ''
+
+    return util.make_sha256(body_data, true)
+end
+
+
+local function authenticate_v4(ctx, allow_pure_v4)
+    ctx.hashed_payload = ctx.headers['x-amz-content-sha256']
+
+    if ctx.hashed_payload == nil then
+        if allow_pure_v4 then
+            local hashed_payload, err, errmsg = get_body_content_sha256()
+            if err ~= nil then
+                return nil, err, errmsg
+            end
+            ctx.hashed_payload = hashed_payload
+        else
+            ctx.hashed_payload = signature_basic.unsigned_payload
+        end
+    end
 
     local date_info,  err, msg = get_date_info(ctx)
     if err ~= nil then
@@ -517,7 +536,7 @@ function _M.authenticate(self, ctx)
 
     if ctx.version == 'v4' then
         ctx.uri = util.url_escape(util.url_unescape_plus(ctx.uri), '/~')
-        return authenticate_v4(ctx)
+        return authenticate_v4(ctx, self.allow_pure_v4)
     else
         local host = ctx.headers.host
         if type(host) ~= 'table' then
@@ -659,11 +678,14 @@ function _M.check_chunk_signature(self, ctx, chunk_data_sha256,
 end
 
 
-function _M.new(get_secret_key, get_bucket_from_host, shared_dict)
+function _M.new(get_secret_key, get_bucket_from_host, shared_dict, opts)
+    opts = opts or {}
+
     return setmetatable({
         get_secret_key = get_secret_key,
         get_bucket_from_host = get_bucket_from_host,
         shared_dict = shared_dict,
+        allow_pure_v4 = opts.allow_pure_v4 == true,
     }, mt)
 end
 
