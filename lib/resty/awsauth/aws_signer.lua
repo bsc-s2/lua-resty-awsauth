@@ -16,6 +16,9 @@ local valid_auth_args = {
     ['X-Amz-Expires'] = true,
     ['X-Amz-SignedHeaders'] = true,
     ['X-Amz-Signature'] = true,
+    ['AWSAccessKeyId'] = true,
+    ['Expires'] = true,
+    ['Signature'] = true,
 }
 
 
