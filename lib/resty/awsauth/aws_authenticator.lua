@@ -641,12 +641,12 @@ function _M.init_seed_signature(self, ctx)
     end
 
     if ctx.anonymous == true then
-        return nil, 'InvalidRequest',
+        return nil, 'InvalidSignature',
                 'anonymous user is not allowed to use chunked upload'
     end
 
     if ctx.version ~= 'v4' or ctx.query_auth ~= false then
-        return nil, 'InvalidRequest',
+        return nil, 'InvalidSignature',
                 'chunked upload must use signature version 4 '..
                 'with an Authorization header'
     end

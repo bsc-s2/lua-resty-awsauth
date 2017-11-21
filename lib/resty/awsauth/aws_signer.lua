@@ -497,5 +497,22 @@ function _M.add_auth_v4(self, request, opts)
     return ctx, nil, nil
 end
 
+function _M.init_seed_signature(self, ctx)
+    ctx.previous_signature = ctx.signature
+    return ctx
+end
+
+function _M.get_chunk_signature(self, ctx, chunk_data_sha256)
+    ctx.chunk_data_sha256 = chunk_data_sha256
+    ctx.chunk_string_to_sign =
+            signature_basic.build_chunk_string_to_sign_v4(ctx)
+
+    local chunk_signature = signature_basic.calc_signature_v4(
+            ctx.signing_key, ctx.chunk_string_to_sign)
+
+    ctx.previous_signature = chunk_signature
+
+    return chunk_signature
+end
 
 return _M
