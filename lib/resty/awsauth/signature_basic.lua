@@ -45,6 +45,7 @@ local valid_subresources = {
     ['copy'] = false,
     ['relax'] = false,
     ['meta'] = false,
+    ['additional_acl'] = false,
 }
 
 
