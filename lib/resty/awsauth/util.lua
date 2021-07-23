@@ -87,13 +87,13 @@ end
 
 
 function _M.trimall(str)
-    local r = str:gsub('^%s+', ''):gsub('%s+$', ''):gsub('%s+', ' ')
+    r = ngx.re.gsub(_M.strip(str), "\\s+", " ", "jo")
     return r
 end
 
 
 function _M.strip(str)
-    local r = str:gsub('^%s+', ''):gsub('%s+$', '')
+    r = ngx.re.gsub(str, "(^\\s+)|(\\s+$)", "", "jo")
     return r
 end
 

@@ -8,9 +8,9 @@ local _M = { _VERSION = '0.0.1' }
 local mt = { __index = _M }
 local date_difference_tolerance = 60 * 15
 local credential_validate_time_length = 60 * 60 * 24 * 7
-local auth_header_pattern_v4 = '^(.+)%s+Credential=(.+),'..
-                               '%s*SignedHeaders=(.+),%s*Signature=(%x+)$'
-local auth_header_pattern_v2 = '^(%w+)%s+(.+):(.+)$'
+local auth_header_pattern_v4 = '^(.+)\\s+Credential=(.+),'..
+                               '\\s*SignedHeaders=(.+),\\s*Signature=([0-9a-fA-F]+)$'
+local auth_header_pattern_v2 = '^(\\w+)\\s+(.+):(.+)$'
 local headers_not_need_to_be_signed = {
     ['x-amz-content-sha256'] = true
 }
@@ -84,9 +84,9 @@ local function find_out_auth_mechanism(ctx)
                     'header is allowed'
         end
 
-        if string.match(auth_header, auth_header_pattern_v4) then
+        if ngx.re.match(auth_header, auth_header_pattern_v4, "jo") then
             ctx.version = 'v4'
-        elseif string.match(auth_header, auth_header_pattern_v2) then
+        elseif ngx.re.match(auth_header, auth_header_pattern_v2, "jo") then
             ctx.version = 'v2'
         else
             return nil, 'InvalidArgument', 'Authorization header is '..
@@ -162,12 +162,13 @@ end
 
 local function parse_and_validate_auth_header(ctx)
     if ctx.version == 'v4' then
-        ctx.algorithm, ctx.credential, ctx.signed_headers, ctx.signature =
-            string.match(ctx.headers.authorization, auth_header_pattern_v4)
+        local m  = ngx.re.match(ctx.headers.authorization, auth_header_pattern_v4, "jo")
+        local m = m or {}
+        ctx.algorithm, ctx.credential, ctx.signed_headers, ctx.signature = m[1], m[2], m[3], m[4]
     else
-        ctx.algorithm, ctx.access_key, ctx.signature = string.match(
-                ctx.headers.authorization, auth_header_pattern_v2)
-
+        local m  = ngx.re.match(ctx.headers.authorization, auth_header_pattern_v2, "jo")
+        local m = m or {}
+        ctx.algorithm, ctx.access_key, ctx.signature =  m[1], m[2], m[3]
     end
 
     return nil, nil, nil
